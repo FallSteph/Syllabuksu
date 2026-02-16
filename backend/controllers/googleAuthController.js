@@ -35,9 +35,16 @@ async function loginWithGoogleToken(req, res) {
     const email = String(payload.email || "").trim().toLowerCase();
     const existing = await User.findOne({ email });
     if (existing) {
+      if (existing.is_active === false) {
+        return res.status(403).json({ success: false, error: "Account inactive" });
+      }
       if (existing.status === "ARCHIVED") {
         return res.status(403).json({ success: false, error: "Account archived" });
       }
+      existing.last_login = new Date();
+      existing.updated_at = new Date();
+      existing.is_active = true;
+      await existing.save();
       const role = mapRoleToClient(existing.role);
       const user = {
         id: String(existing._id),
@@ -58,6 +65,10 @@ async function loginWithGoogleToken(req, res) {
       role: "FACULTY",
       college: "",
       department: "",
+      status: "ACTIVE",
+      is_active: true,
+      last_login: new Date(),
+      updated_at: new Date(),
     });
     await user.save();
     return res.json({
@@ -117,13 +128,23 @@ async function googleCallback(req, res) {
         college: "",
         department: "",
         status: "ACTIVE",
+        is_active: true,
+        updated_at: new Date(),
       });
       await user.save();
+    }
+    if (user.is_active === false) {
+      const clientUrl = process.env.CLIENT_URL || "http://localhost:8080";
+      return res.redirect(`${clientUrl}/login?google=error`);
     }
     if (user.status === "ARCHIVED") {
       const clientUrl = process.env.CLIENT_URL || "http://localhost:8080";
       return res.redirect(`${clientUrl}/login?google=error`);
     }
+    user.last_login = new Date();
+    user.updated_at = new Date();
+    user.is_active = true;
+    await user.save();
     const role = mapRoleToClient(user.role);
     const params = new URLSearchParams({
       google: "success",

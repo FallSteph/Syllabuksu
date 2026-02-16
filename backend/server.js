@@ -18,10 +18,25 @@ if (!uri) {
   throw new Error("MONGODB_URI is not defined");
 }
 
+const User = require("./models/User");
+async function ensureUserFields() {
+  try {
+    const now = new Date();
+    await User.updateMany({ is_active: { $exists: false } }, { $set: { is_active: true } });
+    await User.updateMany({ updated_at: { $exists: false } }, { $set: { updated_at: now } });
+    await User.updateMany({ last_login: { $exists: false } }, { $set: { last_login: null } });
+    await User.updateMany({ status: { $exists: false } }, { $set: { status: "ACTIVE" } });
+    console.log("User fields ensured");
+  } catch (e) {
+    console.warn("ensureUserFields failed:", e?.message || e);
+  }
+}
+
 mongoose
   .connect(uri, { serverSelectionTimeoutMS: 5000 })
   .then(() => {
     console.log("MongoDB connected");
+    ensureUserFields();
   })
   .catch((err) => {
     console.error("MongoDB connection error:", err.message);

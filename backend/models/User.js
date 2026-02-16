@@ -16,7 +16,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["ACTIVE", "ARCHIVED"],
     default: "ACTIVE"
-  }
+  },
+  is_active: { type: Boolean, default: true },
+  last_login: { type: Date, default: null },
+  updated_at: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model("User", userSchema);

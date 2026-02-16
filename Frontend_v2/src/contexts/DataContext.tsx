@@ -54,6 +54,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       department: u.department ?? '',
       isApproved: true,
       status: u.status === 'archived' ? 'archived' : (u.status === 'ARCHIVED' ? 'archived' : 'active'),
+      isActive: u.isActive ?? u.is_active ?? (u.status === 'ARCHIVED' ? false : true),
+      lastLogin: u.lastLogin ?? u.last_login ?? undefined,
+      updatedAt: u.updatedAt ?? u.updated_at ?? undefined,
       createdAt: u.createdAt ?? new Date().toISOString().split('T')[0],
       notificationsEnabled: true,
     };

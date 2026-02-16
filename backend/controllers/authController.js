@@ -13,6 +13,9 @@ async function login(req, res) {
     if (!user) {
       return res.status(401).json({ success: false, error: "Invalid email or password" });
     }
+    if (user.is_active === false) {
+      return res.status(403).json({ success: false, error: "Account inactive" });
+    }
     if (user.status === "ARCHIVED") {
       return res.status(403).json({ success: false, error: "Account archived" });
     }
@@ -25,6 +28,10 @@ async function login(req, res) {
     }
     const approvedRoles = ["FACULTY", "DEPT_HEAD", "DEAN", "CITL", "VPAA", "ADMIN"];
     const role = user.role && approvedRoles.includes(user.role) ? user.role : "FACULTY";
+    user.last_login = new Date();
+    user.updated_at = new Date();
+    user.is_active = true;
+    await user.save();
     const payload = { sub: String(user._id), email: user.email, role };
     const token = jwt.sign(payload, process.env.JWT_SECRET || "dev_secret", { expiresIn: "7d" });
     const clientRoleMap = {
@@ -90,6 +97,8 @@ async function register(req, res) {
       college: college || "",
       department: department || "",
       status: "ACTIVE",
+      is_active: true,
+      updated_at: new Date(),
     });
     await user.save();
     const clientUser = {

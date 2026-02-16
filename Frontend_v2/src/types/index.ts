@@ -20,6 +20,9 @@ export interface User {
   department: string;
   isApproved: boolean;
   status?: 'active' | 'archived';
+  isActive?: boolean;
+  lastLogin?: string;
+  updatedAt?: string;
   createdAt: string;
   notificationsEnabled: boolean;
 }
