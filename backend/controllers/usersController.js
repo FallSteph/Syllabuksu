@@ -34,6 +34,7 @@ function toClientUser(u) {
     isApproved: true,
     college: u.college || "",
     department: u.department || "",
+    status: (u.status === "ARCHIVED" ? "archived" : "active"),
     createdAt: new Date(u._id.getTimestamp()).toISOString().split("T")[0],
     notificationsEnabled: true,
   };
@@ -51,13 +52,16 @@ async function listUsers(req, res) {
 async function updateUser(req, res) {
   try {
     const { id } = req.params;
-    const { firstName, lastName, role, college, department } = req.body || {};
+    const { firstName, lastName, role, college, department, status } = req.body || {};
     const update = {};
     if (typeof firstName === "string") update.first_name = firstName;
     if (typeof lastName === "string") update.last_name = lastName;
     if (typeof role === "string") update.role = mapRoleToDb(role);
     if (typeof college === "string") update.college = college;
     if (typeof department === "string") update.department = department;
+    if (typeof status === "string") {
+      update.status = status.toLowerCase() === "archived" ? "ARCHIVED" : "ACTIVE";
+    }
     const u = await User.findByIdAndUpdate(id, update, { new: true });
     if (!u) {
       return res.status(404).json({ success: false, error: "User not found" });

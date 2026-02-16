@@ -22,6 +22,7 @@ interface DataContextType {
   addUser: (user: Omit<User, 'id' | 'createdAt'>, password?: string) => void;
   updateUser: (userId: string, updates: Partial<User>) => void;
   archiveUser: (userId: string) => void;
+  unarchiveUser: (userId: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -52,6 +53,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       college: u.college ?? '',
       department: u.department ?? '',
       isApproved: true,
+      status: u.status === 'archived' ? 'archived' : (u.status === 'ARCHIVED' ? 'archived' : 'active'),
       createdAt: u.createdAt ?? new Date().toISOString().split('T')[0],
       notificationsEnabled: true,
     };
@@ -490,6 +492,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             role: updates.role,
             college: updates.college,
             department: updates.department,
+            status: updates.status,
           }),
         });
         const data = await res.json();
@@ -508,15 +511,41 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const archiveUser = (userId: string) => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/users/${userId}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE}/users/${userId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'archived' }),
+        });
         const data = await res.json();
-        if (data?.success) {
-          setAllUsers(prev => prev.filter(u => u.id !== userId));
+        if (data?.success && data.user) {
+          const mapped = mapServerUser(data.user);
+          setAllUsers(prev => prev.map(u => (u.id === userId ? { ...u, ...mapped } : u)));
         } else {
-          setAllUsers(prev => prev.filter(u => u.id !== userId));
+          setAllUsers(prev => prev.map(u => (u.id === userId ? { ...u, status: 'archived' } : u)));
         }
       } catch {
-        setAllUsers(prev => prev.filter(u => u.id !== userId));
+        setAllUsers(prev => prev.map(u => (u.id === userId ? { ...u, status: 'archived' } : u)));
+      }
+    })();
+  };
+
+  const unarchiveUser = (userId: string) => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/users/${userId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'active' }),
+        });
+        const data = await res.json();
+        if (data?.success && data.user) {
+          const mapped = mapServerUser(data.user);
+          setAllUsers(prev => prev.map(u => (u.id === userId ? { ...u, ...mapped } : u)));
+        } else {
+          setAllUsers(prev => prev.map(u => (u.id === userId ? { ...u, status: 'active' } : u)));
+        }
+      } catch {
+        setAllUsers(prev => prev.map(u => (u.id === userId ? { ...u, status: 'active' } : u)));
       }
     })();
   };
@@ -541,6 +570,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addUser,
       updateUser,
       archiveUser,
+      unarchiveUser,
     }}>
       {children}
     </DataContext.Provider>

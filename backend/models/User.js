@@ -11,7 +11,12 @@ const userSchema = new mongoose.Schema({
     enum: ["FACULTY", "DEPT_HEAD", "DEAN", "CITL", "VPAA", "ADMIN"]
   },
   college: { type: String, default: "" },
-  department: { type: String, default: "" }
+  department: { type: String, default: "" },
+  status: {
+    type: String,
+    enum: ["ACTIVE", "ARCHIVED"],
+    default: "ACTIVE"
+  }
 });
 
 module.exports = mongoose.model("User", userSchema);

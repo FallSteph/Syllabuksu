@@ -21,6 +21,13 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
+      try {
+        const last = localStorage.getItem('last_path');
+        if (last && typeof last === 'string' && !last.startsWith('/login')) {
+          navigate(last, { replace: true });
+          return;
+        }
+      } catch {}
       const role = user.role;
       if (role === 'admin') {
         navigate('/admin', { replace: true });

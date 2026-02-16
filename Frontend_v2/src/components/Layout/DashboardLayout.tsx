@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { TopBar } from './TopBar';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminSidebar } from '@/components/Admin/AdminSidebar';
@@ -9,9 +9,20 @@ import { FinalReviewerSidebar } from '@/components/Reviewer/FinalReviewerSidebar
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 export function DashboardLayout() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, initialized, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('last_path', `${location.pathname}${location.search}`);
+    } catch {}
+  }, [location.pathname, location.search]);
+
+  if (!initialized) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

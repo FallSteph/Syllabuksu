@@ -19,6 +19,7 @@ export interface User {
   college: string;
   department: string;
   isApproved: boolean;
+  status?: 'active' | 'archived';
   createdAt: string;
   notificationsEnabled: boolean;
 }

@@ -35,6 +35,9 @@ async function loginWithGoogleToken(req, res) {
     const email = String(payload.email || "").trim().toLowerCase();
     const existing = await User.findOne({ email });
     if (existing) {
+      if (existing.status === "ARCHIVED") {
+        return res.status(403).json({ success: false, error: "Account archived" });
+      }
       const role = mapRoleToClient(existing.role);
       const user = {
         id: String(existing._id),
@@ -113,8 +116,13 @@ async function googleCallback(req, res) {
         role: "FACULTY",
         college: "",
         department: "",
+        status: "ACTIVE",
       });
       await user.save();
+    }
+    if (user.status === "ARCHIVED") {
+      const clientUrl = process.env.CLIENT_URL || "http://localhost:8080";
+      return res.redirect(`${clientUrl}/login?google=error`);
     }
     const role = mapRoleToClient(user.role);
     const params = new URLSearchParams({

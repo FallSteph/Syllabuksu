@@ -10,7 +10,14 @@ const Index = () => {
   const { isAuthenticated } = useAuth();
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    let to = "/dashboard";
+    try {
+      const last = localStorage.getItem('last_path');
+      if (last && typeof last === 'string' && last !== '/' && !last.startsWith('/login')) {
+        to = last;
+      }
+    } catch {}
+    return <Navigate to={to} replace />;
   }
 
   return (

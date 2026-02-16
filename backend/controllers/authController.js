@@ -13,6 +13,9 @@ async function login(req, res) {
     if (!user) {
       return res.status(401).json({ success: false, error: "Invalid email or password" });
     }
+    if (user.status === "ARCHIVED") {
+      return res.status(403).json({ success: false, error: "Account archived" });
+    }
     if (!user.password_hash) {
       return res.status(401).json({ success: false, error: "Invalid email or password" });
     }
@@ -86,6 +89,7 @@ async function register(req, res) {
       role: dbRole,
       college: college || "",
       department: department || "",
+      status: "ACTIVE",
     });
     await user.save();
     const clientUser = {

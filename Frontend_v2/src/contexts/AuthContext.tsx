@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { User, UserRole } from '@/types';
 import { MOCK_AUTH_USERS } from '@/mock/authData';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  initialized: boolean;
   login: (email: string, password: string, recaptchaToken: string) => Promise<{ success: boolean; error?: string; user?: User }>;
   signup: (data: SignupData) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -26,6 +27,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const AUTH_USER_KEY = 'auth_user';
+  const AUTH_TOKEN_KEY = 'auth_token';
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(AUTH_USER_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as User;
+        if (parsed && parsed.email) {
+          setUser(parsed);
+        }
+      }
+    } catch {}
+    setInitialized(true);
+  }, []);
 
   const login = useCallback(async (email: string, password: string, recaptchaToken: string) => {
     if (!recaptchaToken) {
@@ -44,6 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const u = data.user as User;
       setUser(u);
+       try {
+         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(u));
+         if (data.token) {
+           localStorage.setItem(AUTH_TOKEN_KEY, String(data.token));
+         }
+       } catch {}
       return { success: true, user: u };
     } catch {
       return { success: false, error: 'Unable to contact auth server' };
@@ -61,7 +84,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!data.success) {
         return { success: false, error: 'Google sign-in failed' };
       }
-      setUser(data.user as User);
+      const u = data.user as User;
+      setUser(u);
+      try {
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(u));
+        if (data.token) {
+          localStorage.setItem(AUTH_TOKEN_KEY, String(data.token));
+        }
+      } catch {}
       return { success: true };
     } catch {
       return { success: false, error: 'Unable to contact auth server' };
@@ -95,16 +125,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setUser(null);
+    try {
+      localStorage.removeItem(AUTH_USER_KEY);
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    } catch {}
   }, []);
 
   const updateUser = useCallback((updates: Partial<User>) => {
-    setUser(prev => prev ? { ...prev, ...updates } : (updates as User));
+    setUser(prev => {
+      const next = prev ? { ...prev, ...updates } : (updates as User);
+      try {
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   }, []);
 
   return (
     <AuthContext.Provider value={{
       user,
       isAuthenticated: !!user,
+      initialized,
       login,
       loginWithGoogle,
       signup,

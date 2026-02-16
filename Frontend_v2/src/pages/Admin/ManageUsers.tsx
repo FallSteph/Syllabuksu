@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Users, CheckCircle2, XCircle, Plus, Pencil, Archive, Search, Filter, Key, Copy, Building2, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Mail, ChevronUp, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ROLE_LABELS, COLLEGES, DEPARTMENTS, UserRole, User } from '@/types';
 
 export default function ManageUsersPage() {
-  const { pendingUsers, allUsers, approveUser, rejectUser, addUser, updateUser, archiveUser } = useData();
+  const { pendingUsers, allUsers, approveUser, rejectUser, addUser, updateUser, archiveUser, unarchiveUser } = useData();
   const { toast } = useToast();
   
   // Basic filter states that I'll use throughout the component
@@ -57,6 +57,19 @@ export default function ManageUsersPage() {
   // Sorting states for both tabs
   const [pendingSortOrder, setPendingSortOrder] = useState<'asc' | 'desc' | null>(null);
   const [existingSortOrder, setExistingSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    try {
+      return localStorage.getItem('manage_users_tab') || 'pending';
+    } catch {
+      return 'pending';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('manage_users_tab', activeTab);
+    } catch {}
+  }, [activeTab]);
 
   // Memoizing departments based on selected college to avoid recalculating
   const availableDepartments = useMemo(() => {
@@ -386,9 +399,14 @@ export default function ManageUsersPage() {
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div>
             <p className="text-xs text-muted-foreground mb-1">Role</p>
-            <Badge variant="secondary" className="text-xs">
-              {ROLE_LABELS[user.role]}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                {ROLE_LABELS[user.role]}
+              </Badge>
+              {user.status === 'archived' && (
+                <Badge variant="destructive" className="text-xs">Archived</Badge>
+              )}
+            </div>
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">College</p>
@@ -433,26 +451,44 @@ export default function ManageUsersPage() {
             </>
           ) : (
             <>
-              <Button 
-                type="button"
-                variant="outline"
-                size="sm" 
-                onClick={() => openEditDialog(user)}
-                className="flex-1 gap-1"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                Edit
-              </Button>
-              <Button 
-                type="button"
-                variant="destructive" 
-                size="sm" 
-                onClick={() => openArchiveConfirm(user.id, `${user.firstName} ${user.lastName}`)}
-                className="flex-1 gap-1"
-              >
-                <Archive className="h-3.5 w-3.5" />
-                Archive
-              </Button>
+              {user.status === 'archived' ? (
+                <Button 
+                  type="button"
+                  variant="default"
+                  size="sm" 
+                  onClick={() => {
+                    unarchiveUser(user.id);
+                    toast({ title: 'User Unarchived', description: `${user.firstName} ${user.lastName} is now active.` });
+                  }}
+                  className="flex-1 gap-1"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Unarchive
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    size="sm" 
+                    onClick={() => openEditDialog(user)}
+                    className="flex-1 gap-1"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                  <Button 
+                    type="button"
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => openArchiveConfirm(user.id, `${user.firstName} ${user.lastName}`)}
+                    className="flex-1 gap-1"
+                  >
+                    <Archive className="h-3.5 w-3.5" />
+                    Archive
+                  </Button>
+                </>
+              )}
             </>
           )}
         </div>
@@ -824,7 +860,8 @@ export default function ManageUsersPage() {
       </Card>
 
       {/* Tabs for Pending and Existing Users */}
-      <Tabs defaultValue="pending" className="space-y-4" onValueChange={() => {
+      <Tabs value={activeTab} className="space-y-4" onValueChange={(val) => {
+        setActiveTab(val);
         setCurrentPendingPage(1);
         setCurrentExistingPage(1);
         setPendingSortOrder(null);
@@ -915,12 +952,22 @@ export default function ManageUsersPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="py-2 px-3">
-                                <Badge 
-                                  variant="secondary" 
-                                  className="inline-flex justify-center items-center text-xs px-2 py-0.5 whitespace-nowrap"
-                                >
-                                  {ROLE_LABELS[user.role]}
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  <Badge 
+                                    variant="secondary" 
+                                    className="inline-flex justify-center items-center text-xs px-2 py-0.5 whitespace-nowrap"
+                                  >
+                                    {ROLE_LABELS[user.role]}
+                                  </Badge>
+                                  {user.status === 'archived' && (
+                                    <Badge 
+                                      variant="destructive" 
+                                      className="inline-flex justify-center items-center text-xs px-2 py-0.5 whitespace-nowrap"
+                                    >
+                                      Archived
+                                    </Badge>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell className="py-2 px-3">
                                 <div className="text-sm truncate" title={user.college}>
@@ -1068,26 +1115,44 @@ export default function ManageUsersPage() {
                               </TableCell>
                               <TableCell className="py-2 px-3">
                                 <div className="flex items-center justify-center gap-2">
-                                  <Button 
-                                    type="button"
-                                    variant="outline"
-                                    size="sm" 
-                                    onClick={() => openEditDialog(user)}
-                                    className="gap-1 h-7 px-2 text-xs"
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                    Edit
-                                  </Button>
-                                  <Button 
-                                    type="button"
-                                    variant="destructive" 
-                                    size="sm" 
-                                    onClick={() => openArchiveConfirm(user.id, `${user.firstName} ${user.lastName}`)}
-                                    className="gap-1 h-7 px-2 text-xs"
-                                  >
-                                    <Archive className="h-3 w-3" />
-                                    Archive
-                                  </Button>
+                                  {user.status === 'archived' ? (
+                                    <Button 
+                                      type="button"
+                                      variant="default"
+                                      size="sm" 
+                                      onClick={() => {
+                                        unarchiveUser(user.id);
+                                        toast({ title: 'User Unarchived', description: `${user.firstName} ${user.lastName} is now active.` });
+                                      }}
+                                      className="gap-1 h-7 px-2 text-xs"
+                                    >
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Unarchive
+                                    </Button>
+                                  ) : (
+                                    <>
+                                      <Button 
+                                        type="button"
+                                        variant="outline"
+                                        size="sm" 
+                                        onClick={() => openEditDialog(user)}
+                                        className="gap-1 h-7 px-2 text-xs"
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                        Edit
+                                      </Button>
+                                      <Button 
+                                        type="button"
+                                        variant="destructive" 
+                                        size="sm" 
+                                        onClick={() => openArchiveConfirm(user.id, `${user.firstName} ${user.lastName}`)}
+                                        className="gap-1 h-7 px-2 text-xs"
+                                      >
+                                        <Archive className="h-3 w-3" />
+                                        Archive
+                                      </Button>
+                                    </>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>
